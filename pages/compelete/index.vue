@@ -1,27 +1,86 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick, computed } from 'vue';
 
 const priceList = [0, 5000, 20000, 50000, 90000, 95000, 100000];
+const arrowMargin = 6;
 const priceLast = priceList.length - 1;
 const currentPrice = ref(priceList[0]);
 const tooltipRef = ref(null);
+const progressBarRef = ref(null);
+
+const toolTipStatus = ref(false);
+const toolTipLeft = ref(0);
+const toolTipRight = ref(0);
+const toolTipPosX = ref(0);
+const pointPos = ref(0);
+
+const progressValue = computed(() => {
+	return (currentPrice.value / priceList[priceLast]) * 100;
+});
+
+const getCurrentPrice = price => {
+	currentPrice.value = price;
+	toolTipStatus.value = true;
+
+	nextTick(() => {
+		widthCalc();
+	});
+};
+const widthCalc = () => {
+	if (!tooltipRef.value || !progressBarRef.value) return;
+
+	const toolTipWidth = tooltipRef.value.offsetWidth;
+	const leftOffset = tooltipRef.value.offsetLeft;
+	const progressWidth = progressBarRef.value.offsetWidth;
+
+	//툴팁 왼쪽 값
+	toolTipLeft.value = Math.floor(toolTipWidth / 2 - leftOffset + toolTipPosX.value);
+	//툴팁 오른쪽 값
+	toolTipRight.value = Math.floor(progressWidth - (toolTipWidth / 2 + leftOffset - toolTipPosX.value));
+
+	//초기화
+	toolTipPosX.value = 0;
+	pointPos.value = 0;
+
+	//왼쪽
+	if (-toolTipLeft.value < 0) {
+		toolTipPosX.value = toolTipLeft.value;
+		pointPos.value = toolTipPosX.value;
+
+		if (toolTipWidth / 2 - pointPos.value < arrowMargin) {
+			pointPos.value = toolTipPosX.value - arrowMargin - 4;
+		}
+	}
+	//오른쪽
+	else if (toolTipRight.value < 0) {
+		toolTipPosX.value = toolTipRight.value;
+		pointPos.value = toolTipPosX.value;
+
+		if (toolTipWidth / 2 + toolTipPosX.value < arrowMargin) {
+			pointPos.value = toolTipPosX.value + arrowMargin + 4;
+		}
+	}
+};
 </script>
 
 <template>
 	<main>
 		<ul class="price_area">
 			<li v-for="(price, i) in priceList" :key="i">
-				<button>
+				<button @click="getCurrentPrice(price)">
 					{{ price.toLocaleString() }}
 				</button>
 			</li>
 		</ul>
 		<section>
 			<div class="progress_area">
-				<progress></progress>
+				<progress ref="progressBarRef" max="100" :value="progressValue"></progress>
+
 				<p
 					ref="tooltipRef"
 					class="tooltip"
+					:class="toolTipStatus ? 'on' : ''"
+					:style="[{ left: `${progressValue}%` }, { marginLeft: `${toolTipPosX}px` }]"
 				>
 					{{ currentPrice.toLocaleString() }}원
 				</p>
